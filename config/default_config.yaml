@@ -1,0 +1,50 @@
+# Default configuration for RAG Document Converter
+
+# LLM integration
+use_llm: false
+llm_config:
+  provider: "ollama"
+  model: "llama3"
+  base_url: "http://localhost:11434"
+  temperature: 0.7
+  max_tokens: 2048
+  
+  # Multi-model configuration
+  use_multi_model: false
+  summarization_model: "phi"
+  entity_model: "llama3"
+  relationship_model: "mistral"
+
+# Processing options
+generate_summaries: true
+apply_entity_identifiers: true
+structure_relationships: true
+apply_controlled_vocabulary: true
+add_footer: true
+cross_reference: true
+
+# Document formatting
+document_version: "1.0"
+default_collection: "Uncategorized"
+default_tags:
+  - "uncategorized"
+  - "rpg"
+  - "setting"
+
+# Entity identification
+entity_prefixes:
+  deity: "DEI"
+  location: "LOC"
+  event: "EVT"
+  item: "ITM"
+  faction: "FAC"
+  creature: "CRE"
+  concept: "CON"
+
+# Controlled vocabulary
+controlled_vocabulary:
+  deity: ["god", "divine being", "immortal"]
+  plane: ["realm", "dimension", "world"]
+  causes: ["results in", "leads to", "creates"]
+  contains: ["houses", "includes", "holds"]
+  rules: ["governs", "controls", "dominates"]

@@ -1,0 +1,72 @@
+# Entity recognition patterns for RAG Document Converter
+
+entity_patterns:
+  - type: deity
+    patterns:
+      - '(?:God|Goddess|Deity) (?:of|named) ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+      - '([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),? the (?:God|Goddess|Deity) (?:of|over) [A-Za-z]+'
+      - 'divine being known as ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+    examples:
+      - 'Goddess of Wisdom'
+      - 'Lumiris, the Deity of Light'
+      - 'divine being known as Tharion'
+
+  - type: location
+    patterns:
+      - 'the (?:realm|kingdom|city|town|village|plane) (?:of|called) ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+      - '([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*) (?:Mountains|Forest|Desert|Sea|Ocean|Lake|River)'
+      - '(?:in|at|near) ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+    examples:
+      - 'the kingdom of Evermist'
+      - 'Bloodwood Forest'
+      - 'near Thornhold'
+
+  - type: event
+    patterns:
+      - 'the (?:Battle|War|Fall|Rise|Coronation|Death) of ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+      - '([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*) (?:Massacre|Rebellion|Uprising|Festival|Celebration)'
+      - 'the ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*) (?:Era|Age|Period)'
+    examples:
+      - 'the Battle of Silverkeep'
+      - 'Twilight Rebellion'
+      - 'the Golden Age'
+
+  - type: item
+    patterns:
+      - '(?:the|a|an) ([A-Z][a-z]+(?:\s+of\s+[A-Za-z]+)?(?:\s+[A-Z][a-z]+)*)'
+      - '([A-Z][a-z]+(?:\'s)? [A-Za-z]+)'
+      - '(?:magic|legendary|ancient) ([A-Za-z]+(?:\s+[A-Za-z]+)*)'
+    examples:
+      - 'the Crown of Eternity'
+      - 'Drakkar\'s Dagger'
+      - 'legendary Moonstone'
+
+  - type: faction
+    patterns:
+      - '(?:the|The) ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*) (?:Clan|Tribe|Guild|Order|Brotherhood|Sisterhood|Circle)'
+      - '([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*) (?:Alliance|Coalition|League|Union|Pact)'
+      - 'followers of (?:the|The) ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+    examples:
+      - 'the Ironbound Guild'
+      - 'Verdant Alliance'
+      - 'followers of the Crimson Path'
+
+  - type: creature
+    patterns:
+      - '(?:the|a|an) ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*) (?:dragon|wyrm|beast|monster|demon|spirit|elemental)'
+      - '([A-Za-z]+(?:\s+[A-Za-z]+)*) (?:swarm|horde|pack)'
+      - 'species of ([A-Za-z]+(?:\s+[A-Za-z]+)*)'
+    examples:
+      - 'a Frost Dragon'
+      - 'Shadowfiend pack'
+      - 'species of Glimmerwing'
+
+  - type: concept
+    patterns:
+      - 'the (?:concept|principle|idea|philosophy) of ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+      - '([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*) (?:magic|energy|power|force)'
+      - 'the ([A-Z][a-z]+) (?:Cycle|Balance|Harmony)'
+    examples:
+      - 'the concept of Eternal Return'
+      - 'Arcane Energy'
+      - 'the Celestial Balance'

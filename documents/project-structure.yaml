@@ -1,0 +1,401 @@
+project_root:
+  type: directory
+  description: Root directory of the RAG Document Converter project
+  children:
+    - pyproject.toml:
+        type: file
+        description: Project metadata and dependencies
+        contents: |
+          Configuration for poetry or setuptools with dependencies including
+          pyyaml, markdown, openai/anthropic (optional)
+
+    - README.md:
+        type: file
+        description: Project documentation
+        contents: |
+          Overview of the project, installation instructions, usage examples,
+          and explanation of the RAG document format
+
+    - rag_converter:
+        type: package
+        description: Main package containing all project modules
+        children:
+          - __init__.py:
+              type: file
+              description: Package initialization
+              contents: |
+                Version information and package-level imports
+
+          - cli.py:
+              type: file
+              description: Command-line interface for the converter
+              contents: |
+                - ArgumentParser setup
+                - main() function
+                - Command-line entry point
+                - Configuration loading
+                - Integration with converter classes
+
+          - config.py:
+              type: file
+              description: Configuration handling
+              contents: |
+                - Constants for document structure
+                - Entity type prefixes 
+                - Controlled vocabulary
+                - Configuration loading from YAML files
+                - Default configuration values
+
+          - converter.py:
+              type: file
+              description: Main converter class that orchestrates the conversion process
+              contents: |
+                - DocumentConverter class
+                - High-level conversion workflow
+                - Integration of parser, optimizer, and assembler components
+                - LLM client initialization (if enabled)
+                - Input/output file handling
+
+          - parser:
+              type: package
+              description: Components for parsing document structure
+              children:
+                - __init__.py:
+                    type: file
+                    description: Package initialization
+
+                - document_parser.py:
+                    type: file
+                    description: Parses overall document structure
+                    contents: |
+                      - parse_document_structure() method
+                      - Integration of section, yaml, and entity parsers
+
+                - section_parser.py:
+                    type: file
+                    description: Extracts document sections based on headers
+                    contents: |
+                      - _extract_sections() method
+                      - Header level detection
+                      - Content segmentation
+
+                - yaml_parser.py:
+                    type: file
+                    description: Handles YAML block extraction and validation
+                    contents: |
+                      - _extract_yaml_blocks() method
+                      - YAML validation
+                      - Safe loading and error handling
+
+                - entity_parser.py:
+                    type: file
+                    description: Identifies potential named entities in content
+                    contents: |
+                      - _extract_entities() method
+                      - Entity pattern matching
+                      - Entity categorization
+
+                - document_notes_parser.py:
+                    type: file
+                    description: Extracts document metadata section
+                    contents: |
+                      - _extract_document_notes() method
+                      - Metadata validation
+                      - Default value handling
+
+          - optimizer:
+              type: package
+              description: Components for optimizing document content for RAG
+              children:
+                - __init__.py:
+                    type: file
+                    description: Package initialization
+
+                - document_optimizer.py:
+                    type: file
+                    description: Coordinates all optimization processes
+                    contents: |
+                      - optimize_document() method
+                      - Orchestration of individual optimizers
+
+                - entity_identifier.py:
+                    type: file
+                    description: Handles entity identifier generation and application
+                    contents: |
+                      - generate_entity_identifiers() method
+                      - _apply_entity_identifiers() method
+                      - Identifier formatting rules
+
+                - relationship_extractor.py:
+                    type: file
+                    description: Extracts and structures relationships between entities
+                    contents: |
+                      - _structure_relationships() method
+                      - Relationship pattern matching
+                      - YAML relationship formatting
+
+                - section_summarizer.py:
+                    type: file
+                    description: Generates concise summaries for document sections
+                    contents: |
+                      - _generate_section_summaries() method
+                      - Simple summarization logic
+                      - Integration with LLM for advanced summarization
+
+                - vocabulary_controller.py:
+                    type: file
+                    description: Applies controlled vocabulary to content
+                    contents: |
+                      - _apply_controlled_vocabulary() method
+                      - Term replacement logic
+                      - Consistency checking
+
+          - assembler:
+              type: package
+              description: Components for assembling the final document
+              children:
+                - __init__.py:
+                    type: file
+                    description: Package initialization
+
+                - document_assembler.py:
+                    type: file
+                    description: Assembles final document from optimized components
+                    contents: |
+                      - _assemble_document() method
+                      - Document structure formatting
+                      - Integration of all document sections
+
+                - footer_generator.py:
+                    type: file
+                    description: Creates document footer with appendices and cross-references
+                    contents: |
+                      - _create_footer() method
+                      - _create_cross_references() method
+                      - Appendix extraction and formatting
+
+                - notes_generator.py:
+                    type: file
+                    description: Creates or updates document notes section
+                    contents: |
+                      - _create_document_notes() method
+                      - Metadata formatting
+                      - Tags generation and formatting
+
+          - llm:
+              type: package
+              description: LLM integration components (optional)
+              children:
+                - __init__.py:
+                    type: file
+                    description: Package initialization
+
+                - client.py:
+                    type: file
+                    description: LLM client initialization and management
+                    contents: |
+                      - _initialize_llm() method
+                      - API key handling
+                      - Client configuration
+
+                - entity_enhancer.py:
+                    type: file
+                    description: Uses LLM to enhance entity detection
+                    contents: |
+                      - _enhance_entities_with_llm() method
+                      - Prompt construction
+                      - Response parsing
+
+                - relationship_enhancer.py:
+                    type: file
+                    description: Uses LLM to extract semantic relationships
+                    contents: |
+                      - _structure_relationships_with_llm() method
+                      - Relationship extraction prompts
+                      - YAML formatting of relationships
+
+                - summarizer.py:
+                    type: file
+                    description: Uses LLM to generate high-quality section summaries
+                    contents: |
+                      - _generate_summaries_with_llm() method
+                      - Summarization prompts
+                      - Response processing
+
+          - utils:
+              type: package
+              description: Utility functions and helpers
+              children:
+                - __init__.py:
+                    type: file
+                    description: Package initialization
+
+                - logging_utils.py:
+                    type: file
+                    description: Logging configuration and helpers
+                    contents: |
+                      - Logger setup
+                      - Custom formatters
+                      - Logging helpers
+
+                - yaml_utils.py:
+                    type: file
+                    description: YAML processing utilities
+                    contents: |
+                      - Safe YAML loading/dumping
+                      - YAML validation
+                      - Formatting helpers
+
+                - string_utils.py:
+                    type: file
+                    description: String manipulation utilities
+                    contents: |
+                      - Regex helpers
+                      - String normalization
+                      - Pattern matching utilities
+
+                - file_utils.py:
+                    type: file
+                    description: File handling utilities
+                    contents: |
+                      - File reading/writing
+                      - Path normalization
+                      - Directory traversal
+
+    - tests:
+        type: directory
+        description: Test suite for the project
+        children:
+          - __init__.py:
+              type: file
+              description: Test package initialization
+
+          - test_parser:
+              type: directory
+              description: Tests for parser components
+              children:
+                - test_document_parser.py:
+                    type: file
+                    description: Tests for document parser
+
+                - test_section_parser.py:
+                    type: file
+                    description: Tests for section parser
+
+                - test_yaml_parser.py:
+                    type: file
+                    description: Tests for YAML parser
+
+                - test_entity_parser.py:
+                    type: file
+                    description: Tests for entity parser
+
+          - test_optimizer:
+              type: directory
+              description: Tests for optimizer components
+              children:
+                - test_entity_identifier.py:
+                    type: file
+                    description: Tests for entity identifier
+
+                - test_relationship_extractor.py:
+                    type: file
+                    description: Tests for relationship extractor
+
+                - test_section_summarizer.py:
+                    type: file
+                    description: Tests for section summarizer
+
+                - test_vocabulary_controller.py:
+                    type: file
+                    description: Tests for vocabulary controller
+
+          - test_assembler:
+              type: directory
+              description: Tests for assembler components
+              children:
+                - test_document_assembler.py:
+                    type: file
+                    description: Tests for document assembler
+
+                - test_footer_generator.py:
+                    type: file
+                    description: Tests for footer generator
+
+          - test_integration:
+              type: directory
+              description: Integration tests
+              children:
+                - test_end_to_end.py:
+                    type: file
+                    description: End-to-end tests for the converter
+
+                - test_llm_integration.py:
+                    type: file
+                    description: Tests for LLM integration
+
+          - fixtures:
+              type: directory
+              description: Test fixtures and sample documents
+              children:
+                - sample_documents:
+                    type: directory
+                    description: Sample documents for testing
+                    children:
+                      - basic_document.md:
+                          type: file
+                          description: Basic document for testing
+
+                      - complex_document.md:
+                          type: file
+                          description: Complex document with various structures
+
+                      - entity_rich_document.md:
+                          type: file
+                          description: Document with many entities and relationships
+
+    - config:
+        type: directory
+        description: Configuration files
+        children:
+          - default_config.yaml:
+              type: file
+              description: Default configuration values
+              contents: |
+                Default values for entity prefixes, controlled vocabulary,
+                and document templates
+
+          - entity_patterns.yaml:
+              type: file
+              description: Entity recognition patterns
+              contents: |
+                Regular expression patterns for identifying different
+                entity types in documents
+
+    - examples:
+        type: directory
+        description: Example documents and usage examples
+        children:
+          - documents:
+              type: directory
+              description: Example documents
+              children:
+                - before:
+                    type: directory
+                    description: Documents before optimization
+                
+                - after:
+                    type: directory
+                    description: Documents after optimization
+
+          - scripts:
+              type: directory
+              description: Example usage scripts
+              children:
+                - batch_convert.py:
+                    type: file
+                    description: Script for batch conversion of documents
+
+                - custom_optimization.py:
+                    type: file
+                    description: Example of custom optimization pipelines
