@@ -63,16 +63,12 @@ class DocumentParser:
         # Extract document notes if present
         doc_notes = self.notes_parser.extract_document_notes(content)
         
-        # Extract entities
-        entities = self.entity_parser.extract_entities(content)
-        
         # Assemble document structure
         document_structure = {
             'title': title,
             'doc_notes': doc_notes,
             'sections': sections,
             'yaml_blocks': yaml_blocks,
-            'entities': entities,
             'raw_content': content
         }
         

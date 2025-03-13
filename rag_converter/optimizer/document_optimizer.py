@@ -25,7 +25,7 @@ class DocumentOptimizer:
     structure for improved RAG performance.
     """
     
-    def __init__(self, use_llm: bool = False, config_path: Optional[str] = None):
+    def __init__(self, llm_client: LLMClient = None, config_path: Optional[str] = None):
         """
         Initialize the document optimizer.
         
@@ -34,20 +34,15 @@ class DocumentOptimizer:
             config_path: Optional path to a custom configuration file
         """
         self.config = load_config(config_path)
-        self.use_llm = use_llm
+        self.use_llm = llm_client is not None
+        self.llm_client = LLMClient()
         
         # Initialize optimization components
         self.entity_identifier = EntityIdentifier(self.config)
-        self.relationship_extractor = RelationshipExtractor(use_llm=use_llm)
-        self.section_summarizer = SectionSummarizer(use_llm=use_llm)
+        self.relationship_extractor = RelationshipExtractor(use_llm=self.use_llm)
+        self.section_summarizer = SectionSummarizer(use_llm=self.use_llm)
         self.vocabulary_controller = VocabularyController(self.config)
-        
-        # Initialize LLM client if enabled
-        self.llm_client = None
-        if use_llm:
-            self.llm_client = LLMClient()
-            logger.info('LLM integration enabled for document optimization')
-        
+                
         logger.info('Document optimizer initialized')
     
     def optimize_document(self, document_structure: Dict[str, Any]) -> Dict[str, Any]:
@@ -61,7 +56,7 @@ class DocumentOptimizer:
             Optimized document structure
         """
         logger.info('Starting document optimization process')
-        
+        # TODO: All of this should use the LLM in multple passes
         # 1. Generate standardized identifiers for entities
         entity_identifiers = self.entity_identifier.generate_entity_identifiers(
             document_structure['entities']
@@ -86,7 +81,7 @@ class DocumentOptimizer:
             self.llm_client if self.use_llm else None
         )
         
-        # 5. Apply controlled vocabulary
+        # 5. Apply controlled vocabulary : TODO: update so llm defines the controlled vocabulary and keeps passing it in to each successive document optimizer
         document_structure = self.vocabulary_controller.apply_controlled_vocabulary(
             document_structure
         )

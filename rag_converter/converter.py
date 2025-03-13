@@ -36,11 +36,6 @@ class DocumentConverter:
         self.use_llm = use_llm
         self.config_path = config_path
         
-        # Initialize components
-        self.parser = DocumentParser()
-        self.optimizer = DocumentOptimizer(use_llm=use_llm)
-        self.assembler = DocumentAssembler()
-        
         # Initialize LLM client if enabled
         self.llm_client: LLMClient = None
         if use_llm:
@@ -48,6 +43,11 @@ class DocumentConverter:
             logger.info('LLM integration enabled')
         else:
             logger.info('Running in traditional code mode only')
+        
+        # Initialize components
+        self.parser = DocumentParser()
+        self.optimizer = DocumentOptimizer(llm_client=self.llm_client)
+        self.assembler = DocumentAssembler()
     
     def convert_document(self, input_path: Union[str, Path], output_path: Union[str, Path]) -> bool:
         """
@@ -82,7 +82,25 @@ class DocumentConverter:
             # 1. Parse document structure
             document_structure = self.parser.parse_document(content)
             
-            # 2. Optimize document
+            # 2. Optimize document 
+            """
+            TODO: This should be done in multiple passes using the LLM
+                1. Generate standardized vocabulary
+                    - Use LLM for vocabulary generation
+                    - Vocabulary should be updated and stored during each pass
+                    - May run multiple times to refine vocabulary before continuing with other steps
+                2. Apply vocabulary to content
+                    - This can be implemented with standard code or a simpler model
+                3. Extract Entities
+                    - Use LLM for entity extraction
+                    - Use entity config for generating entity code
+                    - Report on non-recognized entities
+                4. Extract Relationships
+                    - Use LLM for relationship extraction
+                    - Use entity config for generating relationship code
+                    - Report on non-recognized relationships
+                5. Summarize Sections
+            """
             optimized_document = self.optimizer.optimize_document(document_structure)
             
             # 3. Assemble final document
