@@ -18,6 +18,13 @@ dependencies = [
     "ollama>=0.4.7",
     "click>=8.1.8",
     "python-dotenv>=1.0.1",
+    "spacy>=3.8.4",
+    "scikit-learn>=1.6.1",
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.4",
+    "pypdf2>=3.0.1",
+    "datasets>=3.4.1",
+    "torch>=2.6.0",
 ]
 
 [project.optional-dependencies]
