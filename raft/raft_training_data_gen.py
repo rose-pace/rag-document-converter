@@ -8,12 +8,25 @@ import os, shutil
 import re
 from math import ceil
 from datasets import Dataset, concatenate_datasets
-from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
-import torch
+from transformers import AutoTokenizer, TFAutoModelForSeq2SeqLM
+import tensorflow as tf
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("raft_script")
+
+# Configure TensorFlow to use GPU if available
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Use dynamic memory allocation
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logger.info(f"Using {len(gpus)} GPU(s)")
+    except RuntimeError as e:
+        logger.warning(f"GPU configuration error: {e}")
+else:
+    logger.info("No GPUs found. Using CPU.")
 
 # Document type literals
 DocType = Literal["api", "pdf", "json", "txt", "md"]
@@ -120,11 +133,7 @@ def generate_questions_hf(chunk: str, x: int = 5, model_name: str = "google/flan
     """
     # Load the Hugging Face model and tokenizer for question generation
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-
-    # Move model to GPU if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
+    model = TFAutoModelForSeq2SeqLM.from_pretrained(model_name)
 
     # Clean the chunk
     clean_text = clean_chunk(chunk)
@@ -138,7 +147,7 @@ Text: {clean_text}
 
 Questions:"""
 
-    inputs = tokenizer(input_text, return_tensors="pt", truncation=True, max_length=1024).to(device)
+    inputs = tokenizer(input_text, return_tensors="tf", truncation=True, max_length=1024)
 
     outputs = model.generate(
         inputs.input_ids, 
@@ -172,11 +181,7 @@ def generate_cot_answer(question: str, oracle_context: str, model_name: str = "g
     """
     # Load the model and tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-
-    # Move model to GPU if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
+    model = TFAutoModelForSeq2SeqLM.from_pretrained(model_name)
 
     # Create a prompt that encourages chain-of-thought reasoning with citations
     prompt = f"""Answer the following question based on the given context. 
@@ -190,7 +195,7 @@ Question: {question}
 
 Answer:"""
 
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024).to(device)
+    inputs = tokenizer(prompt, return_tensors="tf", truncation=True, max_length=1024)
 
     outputs = model.generate(
         inputs.input_ids, 
