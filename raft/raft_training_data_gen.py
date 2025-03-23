@@ -8,31 +8,173 @@ import os, shutil
 import re
 from math import ceil
 from datasets import Dataset, concatenate_datasets
-from transformers import AutoTokenizer, TFAutoModelForSeq2SeqLM
-import tensorflow as tf
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import numpy as np
+import onnxruntime as ort
+from pathlib import Path
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("raft_script")
 
-# Configure TensorFlow to use GPU if available
-gpus = tf.config.list_physical_devices('GPU')
-if gpus:
-    try:
-        # Use dynamic memory allocation
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logger.info(f"Using {len(gpus)} GPU(s)")
-    except RuntimeError as e:
-        logger.warning(f"GPU configuration error: {e}")
+# Configure ONNX Runtime to use GPU if available
+available_providers = ort.get_available_providers()
+if 'CUDAExecutionProvider' in available_providers:
+    sess_options = ort.SessionOptions()
+    providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+    logger.info("Using CUDA GPU with ONNX Runtime")
 else:
-    logger.info("No GPUs found. Using CPU.")
+    sess_options = ort.SessionOptions()
+    providers = ['CPUExecutionProvider']
+    logger.info("No GPU found for ONNX Runtime. Using CPU.")
 
 # Document type literals
 DocType = Literal["api", "pdf", "json", "txt", "md"]
 
 # Every N chunks, save a checkpoint
 N = 15
+
+# ONNX model cache directory
+ONNX_MODEL_CACHE = Path('onnx_models')
+ONNX_MODEL_CACHE.mkdir(exist_ok=True)
+
+# Helper functions for ONNX model handling
+def get_onnx_model_path(model_name: str) -> str:
+    """
+    Returns the path for the ONNX version of a model, creating a sanitized filename.
+    
+    Args:
+        model_name: The original Hugging Face model name
+        
+    Returns:
+        The path to the ONNX model file
+    """
+    # Sanitize model name for file path
+    safe_name = model_name.replace('/', '_')
+    return str(ONNX_MODEL_CACHE / f"{safe_name}.onnx")
+
+def convert_model_to_onnx(model_name: str) -> str:
+    """
+    Converts a Hugging Face model to ONNX format if not already converted.
+    
+    Args:
+        model_name: The Hugging Face model name to convert
+        
+    Returns:
+        The path to the ONNX model file
+    """
+    onnx_path = get_onnx_model_path(model_name)
+    
+    if os.path.exists(onnx_path):
+        logger.info(f"Using existing ONNX model at {onnx_path}")
+        return onnx_path
+    
+    logger.info(f"Converting {model_name} to ONNX format...")
+    
+    # Load the model and tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    
+    # Create dummy input
+    dummy_input = tokenizer("This is a test", return_tensors="pt")
+    
+    # Export to ONNX
+    import torch
+    with torch.no_grad():
+        torch.onnx.export(
+            model,
+            tuple(dummy_input.values()),
+            onnx_path,
+            input_names=['input_ids', 'attention_mask'],
+            output_names=['logits'],
+            dynamic_axes={
+                'input_ids': {0: 'batch', 1: 'sequence'},
+                'attention_mask': {0: 'batch', 1: 'sequence'},
+                'logits': {0: 'batch', 1: 'sequence', 2: 'vocab'}
+            },
+            opset_version=11
+        )
+    
+    logger.info(f"Model converted and saved to {onnx_path}")
+    return onnx_path
+
+def create_onnx_session(model_name: str) -> ort.InferenceSession:
+    """
+    Creates an ONNX Runtime inference session for the given model.
+    
+    Args:
+        model_name: The Hugging Face model name
+        
+    Returns:
+        An ONNX Runtime InferenceSession
+    """
+    onnx_path = convert_model_to_onnx(model_name)
+    return ort.InferenceSession(onnx_path, sess_options=sess_options, providers=providers)
+
+def generate_with_onnx(
+    session: ort.InferenceSession,
+    tokenizer,
+    input_text: str,
+    max_length: int = 512,
+    num_return_sequences: int = 1,
+    temperature: float = 0.7
+) -> List[str]:
+    """
+    Generates text using an ONNX model with a simplified generation approach.
+    
+    Args:
+        session: The ONNX Runtime session
+        tokenizer: The Hugging Face tokenizer
+        input_text: The input text prompt
+        max_length: Maximum length of the generated text
+        num_return_sequences: Number of sequences to generate
+        temperature: Temperature for sampling
+        
+    Returns:
+        A list of generated text sequences
+    """
+    inputs = tokenizer(input_text, return_tensors="pt")
+    input_ids = inputs["input_ids"].numpy()
+    attention_mask = inputs["attention_mask"].numpy()
+    
+    # Simplified generation - we'll use a greedy approach
+    results = []
+    for _ in range(num_return_sequences):
+        current_input_ids = input_ids.copy()
+        current_attention_mask = attention_mask.copy()
+        
+        for _ in range(max_length - current_input_ids.shape[1]):
+            # Run inference
+            ort_inputs = {
+                'input_ids': current_input_ids,
+                'attention_mask': current_attention_mask
+            }
+            ort_outputs = session.run(None, ort_inputs)
+            next_token_logits = ort_outputs[0][:, -1, :]
+            
+            # Apply temperature
+            if temperature > 0:
+                next_token_logits = next_token_logits / temperature
+            
+            # Simple sampling
+            next_tokens = np.argmax(next_token_logits, axis=-1)[:, np.newaxis]
+            
+            # Check if EOS token
+            if next_tokens[0, 0] == tokenizer.eos_token_id:
+                break
+                
+            # Concatenate new tokens
+            current_input_ids = np.concatenate([current_input_ids, next_tokens], axis=1)
+            current_attention_mask = np.concatenate(
+                [current_attention_mask, np.ones((1, 1), dtype=np.int64)],
+                axis=1
+            )
+        
+        # Decode the generated sequence
+        result = tokenizer.decode(current_input_ids[0], skip_special_tokens=True)
+        results.append(result)
+    
+    return results
 
 def get_args() -> argparse.Namespace:
     """
@@ -129,11 +271,19 @@ def clean_chunk(chunk: str) -> str:
 
 def generate_questions_hf(chunk: str, x: int = 5, model_name: str = "google/flan-t5-large") -> list[str]:
     """
-    Uses a more sophisticated Hugging Face model to generate `x` questions based on the given text chunk, utilizing the GPU if available.
+    Uses a more sophisticated ONNX model to generate `x` questions based on the given text chunk.
+    
+    Args:
+        chunk: The text chunk to generate questions from
+        x: Number of questions to generate
+        model_name: The model to use for generation
+        
+    Returns:
+        A list of generated questions
     """
-    # Load the Hugging Face model and tokenizer for question generation
+    # Load the tokenizer and ONNX model for question generation
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = TFAutoModelForSeq2SeqLM.from_pretrained(model_name)
+    session = create_onnx_session(model_name)
 
     # Clean the chunk
     clean_text = clean_chunk(chunk)
@@ -147,20 +297,18 @@ Text: {clean_text}
 
 Questions:"""
 
-    inputs = tokenizer(input_text, return_tensors="tf", truncation=True, max_length=1024)
-
-    outputs = model.generate(
-        inputs.input_ids, 
-        max_length=256,
-        num_beams=x+2,  # Using beam search with extra beams for better diversity
-        num_return_sequences=x,  # Returning `x` sequences
-        temperature=0.8,  # Add some randomness
-        top_k=50,
-        top_p=0.95,
-        do_sample=True
-    )
-
-    questions = [tokenizer.decode(output, skip_special_tokens=True) for output in outputs]
+    # Generate questions with ONNX model
+    questions = []
+    for _ in range(x):
+        outputs = generate_with_onnx(
+            session, 
+            tokenizer,
+            input_text,
+            max_length=256,
+            num_return_sequences=1,
+            temperature=0.8
+        )
+        questions.extend(outputs)
     
     # Clean up the generated questions
     clean_questions = []
@@ -173,15 +321,23 @@ Questions:"""
             q += '?'
         clean_questions.append(q)
     
-    return clean_questions
+    return clean_questions[:x]  # Ensure we return exactly x questions
 
 def generate_cot_answer(question: str, oracle_context: str, model_name: str = "google/flan-t5-xl") -> dict:
     """
-    Generates a chain-of-thought answer with reasoning and citations from the context.
+    Generates a chain-of-thought answer with reasoning and citations from the context using ONNX.
+    
+    Args:
+        question: The question to answer
+        oracle_context: The context text containing the answer
+        model_name: The model to use for generation
+        
+    Returns:
+        A dictionary with reasoning and final answer
     """
-    # Load the model and tokenizer
+    # Load the tokenizer and ONNX model
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = TFAutoModelForSeq2SeqLM.from_pretrained(model_name)
+    session = create_onnx_session(model_name)
 
     # Create a prompt that encourages chain-of-thought reasoning with citations
     prompt = f"""Answer the following question based on the given context. 
@@ -195,18 +351,16 @@ Question: {question}
 
 Answer:"""
 
-    inputs = tokenizer(prompt, return_tensors="tf", truncation=True, max_length=1024)
-
-    outputs = model.generate(
-        inputs.input_ids, 
+    # Generate answer with ONNX model
+    outputs = generate_with_onnx(
+        session,
+        tokenizer,
+        prompt,
         max_length=512,
-        num_beams=4,
-        temperature=0.7,
-        top_p=0.9,
-        do_sample=True
+        temperature=0.7
     )
-
-    raw_answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    raw_answer = outputs[0]
     
     # Process the answer to extract reasoning and final answer
     try:
@@ -232,15 +386,15 @@ Answer:"""
         reasoning_with_quotes = re.sub(r'"([^"]+)"', r'##begin_quote##\1##end_quote##', reasoning)
         
         return {
-            "reasoning": reasoning_with_quotes,
-            "final_answer": final_answer
+            'reasoning': reasoning_with_quotes,
+            'final_answer': final_answer
         }
         
     except Exception as e:
-        logger.warning(f"Error parsing CoT answer: {e}")
+        logger.warning(f'Error parsing CoT answer: {e}')
         return {
-            "reasoning": "Based on the provided context, " + raw_answer,
-            "final_answer": raw_answer
+            'reasoning': 'Based on the provided context, ' + raw_answer,
+            'final_answer': raw_answer
         }
 
 def add_chunk_to_dataset(
